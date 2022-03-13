@@ -1,30 +1,25 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
+#
+# Dump contents of the CDB spambayes database to stdout.
 
 
-RC_DIR = "~/.spambayes"
-DB_FILE = RC_DIR + "/wordprobs.cdb"
-
+from __future__ import print_function
 import sys
 import os
-
-DB_FILE = os.path.expanduser(DB_FILE)
-
 from spambayes.cdb import Cdb
 
 
 def main():
-    if len(sys.argv) == 2:
-        db_file = sys.argv[1]
-    else:
-        db_file = os.path.expanduser(DB_FILE)
+    db_file = sys.argv[1]
     db = Cdb(open(db_file, 'rb'))
     items = []
-    for k, v in db.iteritems():
+    for k, v in db.items():
         items.append((float(v), k))
 
     items.sort()
     for v, k in items:
-        print k, v
+        print(repr(k), '%.4f' % v)
+
 
 if __name__ == "__main__":
     main()

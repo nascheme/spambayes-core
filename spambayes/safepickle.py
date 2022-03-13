@@ -1,12 +1,15 @@
 """Lock pickle files for reading and writing."""
 
 from __future__ import print_function
+from builtins import str
+from builtins import object
 import sys
 import os
 from six.moves import cPickle as pickle
 from spambayes.Options import options
 
-class _InterProcessLock:
+
+class _InterProcessLock(object):
     # FIXME: replace with 'fasteners.InterProcessLock'
     def __init__(self, filename):
         pass
@@ -17,6 +20,7 @@ class _InterProcessLock:
     def release(self):
         pass
 
+
 def pickle_read(filename):
     """Read pickle file contents with a lock."""
     lock = _InterProcessLock(filename)
@@ -25,6 +29,7 @@ def pickle_read(filename):
         return pickle.load(open(filename, 'rb'))
     finally:
         lock.release()
+
 
 def pickle_write(filename, value, protocol=0):
     '''Store value as a pickle without creating corruption'''
@@ -36,15 +41,15 @@ def pickle_write(filename, value, protocol=0):
         # Be as defensive as possible.  Always keep a safe copy.
         tmp = filename + '.tmp'
         fp = None
-        try: 
-            fp = open(tmp, 'wb') 
-            pickle.dump(value, fp, protocol) 
-            fp.close() 
+        try:
+            fp = open(tmp, 'wb')
+            pickle.dump(value, fp, protocol)
+            fp.close()
         except IOError as e:
-            if options["globals", "verbose"]: 
+            if options["globals", "verbose"]:
                 print('Failed update: %s' % str(e), file=sys.stderr)
-            if fp is not None: 
-                os.remove(tmp) 
+            if fp is not None:
+                os.remove(tmp)
             raise
         try:
             # With *nix we can just rename, and (as long as permissions
@@ -61,4 +66,3 @@ def pickle_write(filename, value, protocol=0):
             os.remove(filename + '.bak')
     finally:
         lock.release()
-

@@ -1,19 +1,26 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 """Module to tokenize email messages for spam filtering."""
+from __future__ import division
 
-from __future__ import generators
+from future import standard_library
+
+standard_library.install_aliases()
+from builtins import chr
+from builtins import map
+from builtins import range
+from past.utils import old_div
+from builtins import object
 
 import email
-import email.Message
-import email.Header
-import email.Utils
-import email.Errors
+import email.header
+import email.utils
+import email.errors
 import re
 import math
 import os
 import binascii
-import urlparse
-import urllib
+import urllib.parse
+import urllib.request, urllib.parse, urllib.error
 
 from spambayes import classifier
 from spambayes.Options import options
@@ -22,23 +29,29 @@ from spambayes.mboxutils import get_message
 
 try:
     from spambayes import dnscache
+
     cache = dnscache.cache(cachefile=options["Tokenizer", "lookup_ip_cache"])
     cache.printStatsAtEnd = False
 except (IOError, ImportError):
-    class cache:
+
+    class cache(object):
         @staticmethod
         def lookup(*args):
             return []
+
+
 else:
     import atexit
+
     atexit.register(cache.close)
 
- 
+
 # Patch encodings.aliases to recognize 'ansi_x3_4_1968'
-from encodings.aliases import aliases # The aliases dictionary
-if not aliases.has_key('ansi_x3_4_1968'):
+from encodings.aliases import aliases  # The aliases dictionary
+
+if 'ansi_x3_4_1968' not in aliases:
     aliases['ansi_x3_4_1968'] = 'ascii'
-del aliases # Not needed any more
+del aliases  # Not needed any more
 
 ##############################################################################
 # To fold case or not to fold case?  I didn't want to fold case, because
@@ -610,22 +623,32 @@ del aliases # Not needed any more
 # words in the msg, without regard to how many times a given word appears.
 def textparts(msg):
     """Return a set of all msg parts with content maintype 'text'."""
-    return set(filter(lambda part: part.get_content_maintype() == 'text',
-                      msg.walk()))
+    return set(
+        [part for part in msg.walk() if part.get_content_maintype() == 'text']
+    )
+
 
 def octetparts(msg):
     """Return a set of all msg parts with type 'application/octet-stream'."""
-    return set(filter(lambda part:
-                      part.get_content_type() == 'application/octet-stream',
-                      msg.walk()))
+    return set(
+        [
+            part
+            for part in msg.walk()
+            if part.get_content_type() == 'application/octet-stream'
+        ]
+    )
+
 
 def imageparts(msg):
     """Return a list of all msg parts with type 'image/*'."""
     # Don't want a set here because we want to be able to process them in
     # order.
-    return filter(lambda part:
-                  part.get_content_type().startswith('image/'),
-                  msg.walk())
+    return [
+        part
+        for part in msg.walk()
+        if part.get_content_type().startswith('image/')
+    ]
+
 
 has_highbit_char = re.compile(r"[\x80-\xff]").search
 
@@ -633,13 +656,16 @@ has_highbit_char = re.compile(r"[\x80-\xff]").search
 # Note that <style and HTML comments are handled by crack_html_style()
 # and crack_html_comment() instead -- they can be very long, and long
 # minimal matches have a nasty habit of blowing the C stack.
-html_re = re.compile(r"""
+html_re = re.compile(
+    r"""
     <
     (?![\s<>])  # e.g., don't match 'a < b' or '<<<' or 'i<<5' or 'a<>b'
     # guessing that other tags are usually "short"
     [^>]{0,256} # search for the end '>', but don't run wild
     >
-""", re.VERBOSE | re.DOTALL)
+""",
+    re.VERBOSE | re.DOTALL,
+)
 
 # Trailing letter serves to reject "hostnames" which are really ip
 # addresses.  Some spammers forge their apparent ip addresses, so you get
@@ -664,7 +690,7 @@ received_host_re = re.compile(r'from ([a-z0-9._-]+[a-z])[)\s]')
 # parens.  Yahoo seems to be guilty of this minor infraction:
 #   Received: from unknown (66.218.66.218)
 #       by m19.grp.scd.yahoo.com with QMQP; 19 Dec 2003 04:06:53 -0000
-received_ip_re = re.compile(r'[[(]((\d{1,3}\.?){4})[])]')
+received_ip_re = re.compile(r'[\[\(]((\d{1,3}\.?){4})[\]\)]')
 
 received_nntp_ip_re = re.compile(r'((\d{1,3}\.?){4})')
 
@@ -680,6 +706,7 @@ punctuation_run_re = re.compile(r'\W+')
 
 fname_sep_re = re.compile(r'[/\\:]')
 
+
 def crack_filename(fname):
     yield "fname:" + fname
     components = fname_sep_re.split(fname)
@@ -692,8 +719,10 @@ def crack_filename(fname):
             for piece in pieces:
                 yield "fname piece:" + piece
 
-def tokenize_word(word, _len=len, maxword=options["Tokenizer",
-                                                  "skip_max_word_size"]):
+
+def tokenize_word(
+    word, _len=len, maxword=options["Tokenizer", "skip_max_word_size"]
+):
     n = _len(word)
     # Make sure this range matches in tokenize().
     if 3 <= n <= maxword:
@@ -724,6 +753,7 @@ def tokenize_word(word, _len=len, maxword=options["Tokenizer",
                     if i >= 128:
                         hicount += 1
                 yield "8bit%%:%d" % round(hicount * 100.0 / len(word))
+
 
 # Generate tokens for:
 #    Content-Type
@@ -858,10 +888,11 @@ def crack_content_xyz(msg):
         # http://mail.python.org/pipermail/spambayes-dev/2003-September/001177.html
         yield "filename:<bogus>"
 
-    if 0:   # disabled; see comment before function
+    if 0:  # disabled; see comment before function
         x = msg.get('content-transfer-encoding')
         if x is not None:
             yield 'content-transfer-encoding:' + x.lower()
+
 
 # The base64 decoder is actually very forgiving, but flubs one case:
 # if no padding is required (no trailing '='), it continues to read
@@ -874,14 +905,18 @@ def crack_content_xyz(msg):
 # about line length, but other than that are strict.  Group 1 is non-empty
 # after a match iff the last significant char on the line is '='; in that
 # case, it must be the last line of the base64 section.
-base64_re = re.compile(r"""
+base64_re = re.compile(
+    r"""
     [ \t]*
     [a-zA-Z0-9+/]*
     (=*)
     [ \t]*
     \r?
     \n
-""", re.VERBOSE)
+""",
+    re.VERBOSE,
+)
+
 
 def try_to_repair_damaged_base64(text):
     i = 0
@@ -904,18 +939,21 @@ def try_to_repair_damaged_base64(text):
             pass
     return base64text + text[i:]
 
+
 def breakdown_host(host):
     parts = host.split('.')
     for i in range(1, len(parts) + 1):
         yield '.'.join(parts[-i:])
+
 
 def breakdown_ipaddr(ipaddr):
     parts = ipaddr.split('.')
     for i in range(1, 5):
         yield '.'.join(parts[:i])
 
+
 def log2(n, log=math.log, c=math.log(2)):
-    return log(n)/c
+    return old_div(log(n), c)
 
 
 class Stripper(object):
@@ -957,7 +995,7 @@ class Stripper(object):
                 pushretained(text[i:])
                 break
             start, end = m.span()
-            pushretained(text[i : start])
+            pushretained(text[i:start])
             tokens.extend(self.tokenize(m))
             m = self.find_end(text, end)
             if not m:
@@ -972,6 +1010,7 @@ class Stripper(object):
         # Override this if you want to suck info out of the start pattern.
         return []
 
+
 # Strip out uuencoded sections and produce tokens.  The return value
 # is (new_text, sequence_of_tokens), where new_text no longer contains
 # uuencoded stuff.  Note that we're not bothering to decode it!  Maybe
@@ -979,31 +1018,39 @@ class Stripper(object):
 # nothing but a uuencoded money.txt; OTOH, uuencode seems to be on
 # its way out (that's an old spam).
 
-uuencode_begin_re = re.compile(r"""
+uuencode_begin_re = re.compile(
+    r"""
     ^begin \s+
     (\S+) \s+   # capture mode
     (\S+) \s*   # capture filename
     $
-""", re.VERBOSE | re.MULTILINE)
+""",
+    re.VERBOSE | re.MULTILINE,
+)
 
 uuencode_end_re = re.compile(r"^end\s*\n", re.MULTILINE)
 
+
 class UUencodeStripper(Stripper):
     def __init__(self):
-        Stripper.__init__(self, uuencode_begin_re.search,
-                                uuencode_end_re.search)
+        Stripper.__init__(
+            self, uuencode_begin_re.search, uuencode_end_re.search
+        )
 
     def tokenize(self, m):
         mode, fname = m.groups()
-        return (['uuencode mode:%s' % mode] +
-                ['uuencode:%s' % x for x in crack_filename(fname)])
+        return ['uuencode mode:%s' % mode] + [
+            'uuencode:%s' % x for x in crack_filename(fname)
+        ]
+
 
 crack_uuencode = UUencodeStripper().analyze
 
 
 # Strip and specially tokenize embedded URLish thingies.
 
-url_fancy_re = re.compile(r""" 
+url_fancy_re = re.compile(
+    r""" 
     \b                      # the preceeding character must not be alphanumeric
     (?: 
         (?:
@@ -1017,19 +1064,25 @@ url_fancy_re = re.compile(r"""
     # be in HTML, may or may not be in quotes, etc.  If it's full of %
     # escapes, cool -- that's a clue too.
     ([^\s<>"'\x7f-\xff]+)  # capture the guts
-""", re.VERBOSE)                        # '
+""",
+    re.VERBOSE,
+)  # '
 
-url_re = re.compile(r"""
+url_re = re.compile(
+    r"""
     (https? | ftp)  # capture the protocol
     ://             # skip the boilerplate
     # Do a reasonable attempt at detecting the end.  It may or may not
     # be in HTML, may or may not be in quotes, etc.  If it's full of %
     # escapes, cool -- that's a clue too.
     ([^\s<>"'\x7f-\xff]+)  # capture the guts
-""", re.VERBOSE)                        # '
+""",
+    re.VERBOSE,
+)  # '
 
 
 urlsep_re = re.compile(r"[;?:@&=+,$.]")
+
 
 class URLStripper(Stripper):
     def __init__(self):
@@ -1067,10 +1120,16 @@ class URLStripper(Stripper):
             tokens.extend(["url:" + escape for escape in escapes])
 
             # now remove any obfuscation and probe around a bit
-            url = urllib.unquote(url)
+            url = urllib.parse.unquote(url)
             try:
-                (scheme, netloc, path, params,
-                 query, frag) = urlparse.urlparse(url)
+                (
+                    scheme,
+                    netloc,
+                    path,
+                    params,
+                    query,
+                    frag,
+                ) = urllib.parse.urlparse(url)
             except ValueError:
                 pushclue("url:invalid-url")
             else:
@@ -1093,19 +1152,23 @@ class URLStripper(Stripper):
                 # appear in URLs (perhaps in a local bookmark you established),
                 # and never in a URL you receive from an unsolicited email or
                 # another website.
-                user_pwd, host_port = urllib.splituser(netloc)
+                user_pwd, host_port = urllib.parse.splituser(netloc)
                 if user_pwd is not None:
                     pushclue("url:has user")
 
-                host, port = urllib.splitport(host_port)
+                host, port = urllib.parse.splitport(host_port)
                 # web servers listening on non-standard ports are suspicious ...
                 if port is not None:
-                    if (scheme == "http" and port != '80' or
-                        scheme == "https" and port != '443'):
+                    if (
+                        scheme == "http"
+                        and port != '80'
+                        or scheme == "https"
+                        and port != '443'
+                    ):
                         pushclue("url:non-standard %s port" % scheme)
 
                 # ... as are web servers associated with raw ip addresses
-                if re.match("(\d+\.?){4,4}$", host) is not None:
+                if re.match(r"(\d+\.?){4,4}$", host) is not None:
                     pushclue("url:ip addr")
 
                 # make sure we later tokenize the unobfuscated url bits
@@ -1122,7 +1185,9 @@ class URLStripper(Stripper):
                 pushclue("url:" + chunk)
         return tokens
 
+
 received_complaints_re = re.compile(r'\([a-z]+(?:\s+[a-z]+)+\)')
+
 
 class SlurpingURLStripper(URLStripper):
     def __init__(self):
@@ -1154,39 +1219,53 @@ class SlurpingURLStripper(URLStripper):
         classifier.slurp_wordstream = (proto, guts)
         return tokens
 
+
 if options["URLRetriever", "x-slurp_urls"]:
     crack_urls = SlurpingURLStripper().analyze
 else:
     crack_urls = URLStripper().analyze
 
 # Nuke HTML <style gimmicks.
-html_style_start_re = re.compile(r"""
+html_style_start_re = re.compile(
+    r"""
     < \s* style\b [^>]* >
-""", re.VERBOSE)
+""",
+    re.VERBOSE,
+)
+
 
 class StyleStripper(Stripper):
     def __init__(self):
-        Stripper.__init__(self, html_style_start_re.search,
-                                re.compile(r"</style>").search)
+        Stripper.__init__(
+            self, html_style_start_re.search, re.compile(r"</style>").search
+        )
+
 
 crack_html_style = StyleStripper().analyze
 
 # Nuke HTML comments.
 
+
 class CommentStripper(Stripper):
     def __init__(self):
-        Stripper.__init__(self,
-                          re.compile(r"<!--|<\s*comment\s*[^>]*>").search,
-                          re.compile(r"-->|</comment>").search)
+        Stripper.__init__(
+            self,
+            re.compile(r"<!--|<\s*comment\s*[^>]*>").search,
+            re.compile(r"-->|</comment>").search,
+        )
+
 
 crack_html_comment = CommentStripper().analyze
 
 # Nuke stuff between <noframes> </noframes> tags.
 class NoframesStripper(Stripper):
     def __init__(self):
-        Stripper.__init__(self,
-                          re.compile(r"<\s*noframes\s*>").search,
-                          re.compile(r"</noframes\s*>").search)
+        Stripper.__init__(
+            self,
+            re.compile(r"<\s*noframes\s*>").search,
+            re.compile(r"</noframes\s*>").search,
+        )
+
 
 crack_noframes = NoframesStripper().analyze
 
@@ -1196,19 +1275,24 @@ crack_noframes = NoframesStripper().analyze
 # src=cid:
 # height=0  width=0
 
-virus_re = re.compile(r"""
+virus_re = re.compile(
+    r"""
     < /? \s* (?: script | iframe) \b
 |   \b src= ['"]? cid:
 |   \b (?: height | width) = ['"]? 0
-""", re.VERBOSE)                        # '
+""",
+    re.VERBOSE,
+)  # '
+
 
 def find_html_virus_clues(text):
     for bingo in virus_re.findall(text):
         yield bingo
 
 
-
 numeric_entity_re = re.compile(r'&#(\d+);')
+
+
 def numeric_entity_replacer(m):
     try:
         return chr(int(m.group(1)))
@@ -1216,28 +1300,36 @@ def numeric_entity_replacer(m):
         return '?'
 
 
-breaking_entity_re = re.compile(r"""
+breaking_entity_re = re.compile(
+    r"""
     &nbsp;
 |   < (?: p
       |   br
       )
     >
-""", re.VERBOSE)
+""",
+    re.VERBOSE,
+)
 
-class Tokenizer:
 
-    date_hms_re = re.compile(r' (?P<hour>[0-9][0-9])'
-                             r':(?P<minute>[0-9][0-9])'
-                             r'(?::[0-9][0-9])? ')
+class Tokenizer(object):
 
-    date_formats = ("%a, %d %b %Y %H:%M:%S (%Z)",
-                    "%a, %d %b %Y %H:%M:%S %Z",
-                    "%d %b %Y %H:%M:%S (%Z)",
-                    "%d %b %Y %H:%M:%S %Z",
-                    "%a, %d %b %Y %H:%M (%Z)",
-                    "%a, %d %b %Y %H:%M %Z",
-                    "%d %b %Y %H:%M (%Z)",
-                    "%d %b %Y %H:%M %Z")
+    date_hms_re = re.compile(
+        r' (?P<hour>[0-9][0-9])'
+        r':(?P<minute>[0-9][0-9])'
+        r'(?::[0-9][0-9])? '
+    )
+
+    date_formats = (
+        "%a, %d %b %Y %H:%M:%S (%Z)",
+        "%a, %d %b %Y %H:%M:%S %Z",
+        "%d %b %Y %H:%M:%S (%Z)",
+        "%d %b %Y %H:%M:%S %Z",
+        "%a, %d %b %Y %H:%M (%Z)",
+        "%a, %d %b %Y %H:%M %Z",
+        "%d %b %Y %H:%M (%Z)",
+        "%d %b %Y %H:%M %Z",
+    )
 
     def __init__(self):
         self.setup()
@@ -1249,9 +1341,10 @@ class Tokenizer:
         # done after we set options at runtime (since the tokenizer
         # instance is generally created when this module is imported).
         if options["Tokenizer", "basic_header_tokenize"]:
-            self.basic_skip = [re.compile(s)
-                               for s in options["Tokenizer",
-                                                "basic_header_skip"]]
+            self.basic_skip = [
+                re.compile(s)
+                for s in options["Tokenizer", "basic_header_skip"]
+            ]
 
     def get_message(self, obj):
         return get_message(obj)
@@ -1295,11 +1388,11 @@ class Tokenizer:
         # the best discriminators.
         # (Not just Date, but Received and X-From_.)
         if options["Tokenizer", "basic_header_tokenize"]:
-            for k, v in msg.items():
+            for k, v in list(msg.items()):
                 k = k.lower()
                 for rx in self.basic_skip:
                     if rx.match(k):
-                        break   # do nothing -- we're supposed to skip this
+                        break  # do nothing -- we're supposed to skip this
                 else:
                     # Never found a match -- don't skip this.
                     for w in subject_word_re.findall(v):
@@ -1311,15 +1404,30 @@ class Tokenizer:
         # Habeas Headers - see http://www.habeas.com
         if options["Tokenizer", "x-search_for_habeas_headers"]:
             habeas_headers = [
-("X-Habeas-SWE-1", "winter into spring"),
-("X-Habeas-SWE-2", "brightly anticipated"),
-("X-Habeas-SWE-3", "like Habeas SWE (tm)"),
-("X-Habeas-SWE-4", "Copyright 2002 Habeas (tm)"),
-("X-Habeas-SWE-5", "Sender Warranted Email (SWE) (tm). The sender of this"),
-("X-Habeas-SWE-6", "email in exchange for a license for this Habeas"),
-("X-Habeas-SWE-7", "warrant mark warrants that this is a Habeas Compliant"),
-("X-Habeas-SWE-8", "Message (HCM) and not spam. Please report use of this"),
-("X-Habeas-SWE-9", "mark in spam to <http://www.habeas.com/report/>.")
+                ("X-Habeas-SWE-1", "winter into spring"),
+                ("X-Habeas-SWE-2", "brightly anticipated"),
+                ("X-Habeas-SWE-3", "like Habeas SWE (tm)"),
+                ("X-Habeas-SWE-4", "Copyright 2002 Habeas (tm)"),
+                (
+                    "X-Habeas-SWE-5",
+                    "Sender Warranted Email (SWE) (tm). The sender of this",
+                ),
+                (
+                    "X-Habeas-SWE-6",
+                    "email in exchange for a license for this Habeas",
+                ),
+                (
+                    "X-Habeas-SWE-7",
+                    "warrant mark warrants that this is a Habeas Compliant",
+                ),
+                (
+                    "X-Habeas-SWE-8",
+                    "Message (HCM) and not spam. Please report use of this",
+                ),
+                (
+                    "X-Habeas-SWE-9",
+                    "mark in spam to <http://www.habeas.com/report/>.",
+                ),
             ]
             valid_habeas = 0
             invalid_habeas = False
@@ -1351,10 +1459,12 @@ class Tokenizer:
         # but real benefit to keeping case intact in this specific context.
         x = msg.get('subject', '')
         try:
-            subjcharsetlist = email.Header.decode_header(x)
-        except (binascii.Error, email.Errors.HeaderParseError, ValueError):
+            subjcharsetlist = email.header.decode_header(x)
+        except (binascii.Error, email.errors.HeaderParseError, ValueError):
             subjcharsetlist = [(x, 'invalid')]
         for x, subjcharset in subjcharsetlist:
+            if isinstance(x, bytes):
+                x = x.decode('latin1')  # FIXME
             if subjcharset is not None:
                 yield 'subjectcharset:' + subjcharset
             # this is a workaround for a bug in the csv module in Python
@@ -1383,12 +1493,15 @@ class Tokenizer:
                 continue
 
             noname_count = 0
-            for name, addr in email.Utils.getaddresses(addrlist):
+            for name, addr in email.utils.getaddresses(addrlist):
                 if name:
                     try:
-                        subjcharsetlist = email.Header.decode_header(name)
-                    except (binascii.Error, email.Errors.HeaderParseError,
-                            ValueError):
+                        subjcharsetlist = email.header.decode_header(name)
+                    except (
+                        binascii.Error,
+                        email.errors.HeaderParseError,
+                        ValueError,
+                    ):
                         subjcharsetlist = [(name, 'invalid')]
                     for name, charset in subjcharsetlist:
                         yield "%s:name:%s" % (field, name.lower())
@@ -1403,8 +1516,10 @@ class Tokenizer:
                     yield field + ":addr:none"
 
             if noname_count:
-                yield "%s:no real name:2**%d" % (field,
-                                                 round(log2(noname_count)))
+                yield "%s:no real name:2**%d" % (
+                    field,
+                    round(log2(noname_count)),
+                )
 
         # Spammers sometimes send out mail alphabetically to fairly large
         # numbers of addresses.  This results in headers like:
@@ -1422,7 +1537,7 @@ class Tokenizer:
         if options["Tokenizer", "summarize_email_prefixes"]:
             all_addrs = []
             addresses = msg.get_all('to', []) + msg.get_all('cc', [])
-            for name, addr in email.Utils.getaddresses(addresses):
+            for name, addr in email.utils.getaddresses(addresses):
                 all_addrs.append(addr.lower())
 
             if len(all_addrs) > 1:
@@ -1449,7 +1564,7 @@ class Tokenizer:
         if options["Tokenizer", "summarize_email_suffixes"]:
             all_addrs = []
             addresses = msg.get_all('to', []) + msg.get_all('cc', [])
-            for name, addr in email.Utils.getaddresses(addresses):
+            for name, addr in email.utils.getaddresses(addresses):
                 # flip address code so following logic is the same as
                 # that for prefixes
                 addr = list(addr)
@@ -1503,8 +1618,10 @@ class Tokenizer:
                 for clue in received_complaints_re.findall(header):
                     yield 'received:' + clue
 
-                for pat, breakdown in [(received_host_re, breakdown_host),
-                                       (received_ip_re, breakdown_ipaddr)]:
+                for pat, breakdown in [
+                    (received_host_re, breakdown_host),
+                    (received_ip_re, breakdown_ipaddr),
+                ]:
                     m = pat.search(header)
                     if m:
                         for tok in breakdown(m.group(1)):
@@ -1534,7 +1651,7 @@ class Tokenizer:
         # X-Complaints-To a strong ham clue.
         x2n = {}
         if options["Tokenizer", "count_all_header_lines"]:
-            for x in msg.keys():
+            for x in list(msg.keys()):
                 x2n[x] = x2n.get(x, 0) + 1
         else:
             # Do a "safe" approximation to that.  When spam and ham are
@@ -1542,18 +1659,19 @@ class Tokenizer:
             # lines can be a too strong a discriminator for accidental
             # reasons.
             safe_headers = options["Tokenizer", "safe_headers"]
-            for x in msg.keys():
+            for x in list(msg.keys()):
                 if x.lower() in safe_headers:
                     x2n[x] = x2n.get(x, 0) + 1
-        for x in x2n.items():
+        for x in list(x2n.items()):
             yield "header:%s:%d" % x
         if options["Tokenizer", "record_header_absence"]:
             for k in x2n:
                 if not k.lower() in options["Tokenizer", "safe_headers"]:
                     yield "noheader:" + k
 
-    def tokenize_text(self, text, maxword=options["Tokenizer",
-                                                  "skip_max_word_size"]):
+    def tokenize_text(
+        self, text, maxword=options["Tokenizer", "skip_max_word_size"]
+    ):
         """Tokenize everything in the chunk of text we were handed."""
         short_runs = set()
         short_count = 0
@@ -1602,8 +1720,9 @@ class Tokenizer:
                     yield "control: octet payload is None"
                     continue
 
-                yield "octet:%s" % text[:options["Tokenizer",
-                                                 "octet_prefix_size"]]
+                yield "octet:%s" % text[
+                    : options["Tokenizer", "octet_prefix_size"]
+                ]
 
         parts = imageparts(msg)
         if options["Tokenizer", "image_size"]:
@@ -1628,6 +1747,7 @@ class Tokenizer:
         if options["Tokenizer", "crack_images"]:
             engine_name = options["Tokenizer", 'ocr_engine']
             from spambayes.ImageStripper import crack_images
+
             text, tokens = crack_images(engine_name, parts)
             for t in tokens:
                 yield t
@@ -1649,6 +1769,9 @@ class Tokenizer:
                 yield 'control: payload is None'
                 continue
 
+            if isinstance(text, bytes):
+                text = text.decode('latin1')  # FIXME
+
             # Replace numeric character entities (like &#97; for the letter
             # 'a').
             text = numeric_entity_re.sub(numeric_entity_replacer, text)
@@ -1665,11 +1788,13 @@ class Tokenizer:
 
             # Get rid of uuencoded sections, embedded URLs, <style gimmicks,
             # and HTML comments.
-            for cracker in (crack_uuencode,
-                            crack_urls,
-                            crack_html_style,
-                            crack_html_comment,
-                            crack_noframes):
+            for cracker in (
+                crack_uuencode,
+                crack_urls,
+                crack_html_style,
+                crack_html_comment,
+                crack_noframes,
+            ):
                 text, tokens = cracker(text)
                 for t in tokens:
                     yield t
@@ -1688,6 +1813,7 @@ class Tokenizer:
 
             for t in self.tokenize_text(text):
                 yield t
+
 
 # Mine NNTP-Posting-Host headers.  This is part of an effort to put some
 # SpamBayes smarts into the Mailman gate_news program.  On mail.python.org
@@ -1710,20 +1836,21 @@ def mine_nntp(msg):
             if names:
                 yield 'nntp-host-ip:has-reverse'
                 yield 'nntp-host-name:%s' % names[0]
-                yield ('nntp-host-domain:%s' %
-                       '.'.join(names[0].split('.')[-2:]))
+                yield (
+                    'nntp-host-domain:%s' % '.'.join(names[0].split('.')[-2:])
+                )
         else:
             # assume it's a hostname
             name = address
             yield 'nntp-host-name:%s' % name
-            yield ('nntp-host-domain:%s' %
-                   '.'.join(name.split('.')[-2:]))
+            yield ('nntp-host-domain:%s' % '.'.join(name.split('.')[-2:]))
             addresses = cache.lookup(name)
             if addresses:
                 for clue in gen_dotted_quad_clues("nntp-host-ip", addresses):
                     yield clue
                 if cache.lookup(addresses[0], qType="PTR") == name:
                     yield 'nntp-host-ip:has-reverse'
+
 
 def gen_dotted_quad_clues(pfx, ips):
     for ip in ips:
@@ -1732,12 +1859,19 @@ def gen_dotted_quad_clues(pfx, ips):
         if len(dottedQuadList) >= 1:
             yield "%s:%s/8" % (pfx, dottedQuadList[0])
             if len(dottedQuadList) >= 2:
-                yield "%s:%s.%s/16" % (pfx, dottedQuadList[0],
-                                       dottedQuadList[1])
+                yield "%s:%s.%s/16" % (
+                    pfx,
+                    dottedQuadList[0],
+                    dottedQuadList[1],
+                )
                 if len(dottedQuadList) >= 3:
-                    yield "%s:%s.%s.%s/24" % (pfx, dottedQuadList[0],
-                                              dottedQuadList[1],
-                                              dottedQuadList[2])
+                    yield "%s:%s.%s.%s/24" % (
+                        pfx,
+                        dottedQuadList[0],
+                        dottedQuadList[1],
+                        dottedQuadList[2],
+                    )
+
 
 global_tokenizer = Tokenizer()
 tokenize = global_tokenizer.tokenize

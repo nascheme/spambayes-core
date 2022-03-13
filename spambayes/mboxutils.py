@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 """Utilities for dealing with various types of mailboxes.
 
 This is mostly a wrapper around the various useful classes in the
@@ -18,18 +18,16 @@ mailbox type given a mailbox argument.
 
 """
 
-from __future__ import generators
-
 import os
 import sys
 import glob
 import email
 import mailbox
-import email.Message
 import re
 import traceback
 
-class DirOfTxtFileMailbox:
+
+class DirOfTxtFileMailbox(object):
     """Directory of files each assumed to contain an RFC-822 message.
 
     If the filename ends with ".emlx", assumes that the file is an
@@ -38,7 +36,7 @@ class DirOfTxtFileMailbox:
     on the first line, then the raw message text, then the contents of
     a plist (XML) file that contains data that Mail uses (subject,
     flags, sender, and so forth).  We ignore this plist data).
-    
+
     Subdirectories are traversed recursively.
     """
 
@@ -53,17 +51,18 @@ class DirOfTxtFileMailbox:
                 for mbox in DirOfTxtFileMailbox(name, self.factory):
                     yield mbox
             elif os.path.splitext(name)[1] == ".emlx":
-                f = open(name)
+                f = open(name, 'rb')
                 length = int(f.readline().rstrip())
                 yield self.factory(f.read(length))
                 f.close()
             else:
                 try:
-                    f = open(name)
+                    f = open(name, 'rb')
                 except IOError:
                     continue
                 yield self.factory(f)
                 f.close()
+
 
 def full_messages(msgs):
     """A generator that transforms each message by calling its
@@ -72,11 +71,13 @@ def full_messages(msgs):
     """
     for x in msgs:
         yield x.get_full_message()
-    
+
+
 def _cat(seqs):
     for seq in seqs:
         for item in seq:
             yield item
+
 
 def getmbox(name):
     """Return an mbox iterator given a file/directory/folder name."""
@@ -88,6 +89,7 @@ def getmbox(name):
         # MH folder name: +folder, +f1,f2,f2, or +ALL
         name = name[1:]
         import mhlib
+
         mh = mhlib.MH()
         if name == "ALL":
             names = mh.listfolders()
@@ -112,32 +114,36 @@ def getmbox(name):
         #   :username:password@server:port:folder1,...folderN
         #   :username:password@server:ALL
         #   :username:password@server:port:ALL
-        parts = re.compile(
-':(?P<user>[^@:]+):(?P<pwd>[^@]+)@(?P<server>[^:]+(:[0-9]+)?):(?P<name>[^:]+)'
-        ).match(name).groupdict()
-        
+        parts = (
+            re.compile(
+                ':(?P<user>[^@:]+):(?P<pwd>[^@]+)@(?P<server>[^:]+(:[0-9]+)?):(?P<name>[^:]+)'
+            )
+            .match(name)
+            .groupdict()
+        )
+
         from scripts.sb_imapfilter import IMAPSession, IMAPFolder
         from spambayes import Stats, message
         from spambayes.Options import options
-        
+
         session = IMAPSession(parts['server'])
         session.login(parts['user'], parts['pwd'])
         folder_list = session.folder_list()
-        
+
         if name == "ALL":
             names = folder_list
         else:
             names = parts['name'].split(',')
 
-        message_db = message.Message().message_info_db
+        message_db = email.message.Message().message_info_db
         stats = Stats.Stats(options, message_db)
         mboxes = [IMAPFolder(n, session, stats) for n in names]
-        
+
         if len(mboxes) == 1:
             return full_messages(mboxes[0])
         else:
             return _cat([full_messages(x) for x in mboxes])
-        
+
     if os.path.isdir(name):
         # XXX Bogus: use a Maildir if /cur is a subdirectory, else a MHMailbox
         # if the pathname contains /Mail/, else a DirOfTxtFileMailbox.
@@ -148,9 +154,9 @@ def getmbox(name):
         else:
             mbox = DirOfTxtFileMailbox(name, get_message)
     else:
-        fp = open(name, "rb")
-        mbox = mailbox.PortableUnixMailbox(fp, get_message)
+        mbox = mailbox.mbox(name, get_message)
     return iter(mbox)
+
 
 def get_message(obj):
     """Return an email Message object.
@@ -162,7 +168,7 @@ def get_message(obj):
     the email package is used to create a Message object from it.  This
     can fail if the message is malformed.  In that case, the headers
     (everything through the first blank line) are thrown out, and the
-    rest of the text is wrapped in a bare email.Message.Message.
+    rest of the text is wrapped in a bare email.message.Message.
 
     Note that we can't use our own message class here, because this
     function is imported by tokenizer, and our message class imports
@@ -171,22 +177,23 @@ def get_message(obj):
     shouldn't matter.
     """
 
-    if isinstance(obj, email.Message.Message):
+    if isinstance(obj, email.message.Message):
         return obj
     # Create an email Message object.
     if hasattr(obj, "read"):
         obj = obj.read()
     try:
-        msg = email.message_from_string(obj)
-    except email.Errors.MessageParseError:
+        msg = email.message_from_bytes(obj)
+    except email.errors.MessageParseError:
         # Wrap the raw text in a bare Message object.  Since the
         # headers are most likely damaged, we can't use the email
         # package to parse them, so just get rid of them first.
         headers = extract_headers(obj)
-        obj = obj[len(headers):]
-        msg = email.Message.Message()
+        obj = obj[len(headers) :]
+        msg = email.message.Message()
         msg.set_payload(obj)
     return msg
+
 
 def as_string(msg, unixfrom=False):
     """Convert a Message object to a string in a safe-ish way.
@@ -195,7 +202,7 @@ def as_string(msg, unixfrom=False):
     TypeError for some malformed messages.  This catches that and attempts
     to return something approximating the original message.
 
-    To Do: This really should be done by subclassing email.Message.Message
+    To Do: This really should be done by subclassing email.message.Message
     and making this function the as_string() method.  After 1.0.
 
     [Tony] Better: sb_filter & sb_mboxtrain should stop using this and
@@ -214,7 +221,7 @@ def as_string(msg, unixfrom=False):
         headers = []
         if unixfrom:
             headers.append(msg.get_unixfrom())
-        for (hdr, val) in msg.items():
+        for (hdr, val) in list(msg.items()):
             headers.append("%s: %s" % (hdr, val))
         headers.append("X-Spambayes-Exception: %s" % excstr)
         parts = ["%s\n" % "\n".join(headers)]
@@ -229,10 +236,11 @@ def as_string(msg, unixfrom=False):
         if boundary:
             parts.append("--%s--" % boundary)
         # make sure it ends with a newline:
-        return "\n".join(parts)+"\n"
+        return "\n".join(parts) + "\n"
 
 
 header_break_re = re.compile(r"\r?\n(\r?\n)")
+
 
 def extract_headers(text):
     """Very simple-minded header extraction:  prefix of text up to blank line.
@@ -268,6 +276,8 @@ def extract_headers(text):
         text = ""
     return text
 
+
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

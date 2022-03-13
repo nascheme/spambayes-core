@@ -1,4 +1,4 @@
-#/usr/bin/env python
+# /usr/bin/env python3
 """
 Convert a hammie database to a cdb database.
 
@@ -11,26 +11,28 @@ usage %(prog)s [ -h ] [ -d <file> | -p <file> ] <cdbfile>
 -p file - Use a pickle-based classifier named file.
 
 """
-
+from __future__ import print_function
 import sys
 import os
 import getopt
 from spambayes import cdb
 from spambayes import storage
-from spambayes.cdb_classifier import CdbClassifier
 
 prog = os.path.basename(sys.argv[0])
 
+
 def usage(msg=None):
     if msg is not None:
-        print >> sys.stderr, msg
-    print >> sys.stderr, __doc__.strip() % globals()
+        print(msg, file=sys.stderr)
+    print(__doc__.strip() % globals(), file=sys.stderr)
+
 
 def main(args):
     try:
-        opts, args = getopt.getopt(args, "hd:p:",
-                                   ["help", "database=", "pickle="])
-    except getopt.GetoptError, msg:
+        opts, args = getopt.getopt(
+            args, "hd:p:", ["help", "database=", "pickle="]
+        )
+    except getopt.GetoptError as msg:
         usage(msg)
         return 1
 
@@ -44,11 +46,10 @@ def main(args):
         if opt in ("-h", "--help"):
             usage()
             return 0
-            
+
     dbname, usedb = storage.database_type(opts)
     store = storage.open_storage(dbname, usedb)
 
-    bayes = CdbClassifier()
     items = []
     for word in store._wordinfokeys():
         record = store._wordinfoget(word)
@@ -57,6 +58,7 @@ def main(args):
     cdbfile = open(cdbname, "wb")
     cdb.cdb_make(cdbfile, items)
     cdbfile.close()
+
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

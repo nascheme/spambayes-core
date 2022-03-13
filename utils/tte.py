@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 Train to exhaustion: train repeatedly on a pile of ham and spam until
@@ -69,7 +69,7 @@ blog:
 """
 
 from __future__ import division
-
+from __future__ import print_function
 import sys
 import getopt
 import os
@@ -84,13 +84,16 @@ prog = os.path.basename(sys.argv[0])
 
 MAXROUNDS = 10
 
+
 def usage(msg=None):
     if msg is not None:
-        print >> sys.stderr, msg
-    print >> sys.stderr, __doc__.strip() % globals()
+        print(msg, file=sys.stderr)
+    print(__doc__.strip() % globals(), file=sys.stderr)
 
-def train(store, hambox, spambox, maxmsgs, maxrounds, tdict, reverse, verbose,
-          ratio):
+
+def train(
+    store, hambox, spambox, maxmsgs, maxrounds, tdict, reverse, verbose, ratio
+):
     round = 0
     ham_cutoff = Options.options["Categorization", "ham_cutoff"]
     spam_cutoff = Options.options["Categorization", "spam_cutoff"]
@@ -104,7 +107,7 @@ def train(store, hambox, spambox, maxmsgs, maxrounds, tdict, reverse, verbose,
     if reverse:
         hambone_ = list(reversed(hambone_))
         spamcan_ = list(reversed(spamcan_))
-    
+
     nspam, nham = len(spamcan_), len(hambone_)
     if ratio:
         rspam, rham = ratio
@@ -116,16 +119,21 @@ def train(store, hambox, spambox, maxmsgs, maxrounds, tdict, reverse, verbose,
     # define some indexing constants
     ham = 0
     spam = 1
-    name = ('ham','spam')
+    name = ('ham', 'spam')
     misses = [0, 0]
 
-    misclassified = lambda is_spam, score: (
-        is_spam and score < spam_cutoff or not is_spam and score > ham_cutoff)
+    def misclassified(is_spam, score):
+        return (
+            is_spam
+            and score < spam_cutoff
+            or not is_spam
+            and score > ham_cutoff
+        )
 
     while round < maxrounds and (misses[ham] or misses[spam] or round == 0):
         round += 1
         if verbose:
-            print >> sys.stderr, "*** round", round, "***"
+            print("*** round", round, "***", file=sys.stderr)
 
         start = datetime.datetime.now()
         hambone = iter(hambone_)
@@ -142,7 +150,7 @@ def train(store, hambox, spambox, maxmsgs, maxrounds, tdict, reverse, verbose,
             train_spam = i[ham] * rspam > i[spam] * rham
 
             try:
-                train_msg = training_sets[train_spam].next()
+                train_msg = next(training_sets[train_spam])
             except StopIteration:
                 break
 
@@ -156,26 +164,35 @@ def train(store, hambox, spambox, maxmsgs, maxrounds, tdict, reverse, verbose,
             try:
                 score = store.spamprob(tokens)
             except UnicodeDecodeError:
-                print >> sys.stderr, "Unicode error while processing", selector
+                print(
+                    "Unicode error while processing",
+                    selector,
+                    file=sys.stderr,
+                )
                 continue
 
             if misclassified(train_spam, score) and selector is not None:
                 if verbose:
-                    print >> sys.stderr, "\tmiss %s: %.6f %s" % (
-                        name[train_spam], score, selector)
+                    print(
+                        "\tmiss %s: %.6f %s"
+                        % (name[train_spam], score, selector),
+                        file=sys.stderr,
+                    )
 
                 misses[train_spam] += 1
                 tdict[train_msg["message-id"]] = True
                 store.learn(tokens, train_spam)
 
-        delta = datetime.datetime.now()-start
-        seconds = delta.seconds + delta.microseconds/1000000
+        delta = datetime.datetime.now() - start
+        seconds = delta.seconds + delta.microseconds / 1000000
 
-        print "\rround: %2d, msgs: %4d, ham misses: %3d, spam misses: %3d, %.1fs" % \
-              (round, msgs_processed, misses[0], misses[1], seconds)
+        print(
+            "\rround: %2d, msgs: %4d, ham misses: %3d, spam misses: %3d, %.1fs"
+            % (round, msgs_processed, misses[0], misses[1], seconds)
+        )
 
     training_sets = [hambone, spamcan]
-    
+
     # We count all untrained messages so the user knows what was skipped.
     # We also tag them for saving so we don't lose messages which might have
     # value in a future run
@@ -183,23 +200,24 @@ def train(store, hambox, spambox, maxmsgs, maxrounds, tdict, reverse, verbose,
         nleft = 0
         try:
             while True:
-                msg = training_sets[is_spam].next()
+                msg = next(training_sets[is_spam])
                 score = store.spamprob(tokenize(msg))
-                
+
                 if misclassified(is_spam, score):
                     tdict[msg["message-id"]] = True
                     nleft += 1
-                    
+
         except StopIteration:
             if nleft:
-                print nleft, "untrained %ss" % name[is_spam]
+                print(nleft, "untrained %ss" % name[is_spam])
+
 
 def cull(mbox_name, cullext, designation, tdict):
-    print "writing new %s mbox..." % designation
+    print("writing new %s mbox..." % designation)
     n = m = 0
     if cullext:
-        culled_mbox = file(mbox_name + cullext, "w")
-        
+        culled_mbox = open(mbox_name + cullext, "w")
+
     for msg in mboxutils.getmbox(mbox_name):
         m += 1
         if msg["message-id"] in tdict:
@@ -208,27 +226,43 @@ def cull(mbox_name, cullext, designation, tdict):
             n += 1
         elif not cullext:
             response = msg.imap_server.uid(
-                "STORE", msg.uid, "+FLAGS.SILENT", "(\\Deleted \\Seen)")
+                "STORE", msg.uid, "+FLAGS.SILENT", "(\\Deleted \\Seen)"
+            )
             command = "set %s to be deleted and seen" % (msg.uid,)
             msg.imap_server.check_response(command, response)
-        
+
         sys.stdout.write("\r%5d of %5d" % (n, m))
         sys.stdout.flush()
-        
+
     sys.stdout.write("\n")
-    
+
     if cullext:
         culled_mbox.close()
-    
+
+
 def main(args):
     try:
-        opts, args = getopt.getopt(args, "hg:s:d:p:o:m:r:c:vRuC",
-                                   ["help", "good=", "spam=",
-                                    "database=", "pickle=", "verbose",
-                                    "option=", "max=", "maxrounds=",
-                                    "cullext=", "cull", "reverse",
-                                    "ratio=", "unbalanced"])
-    except getopt.GetoptError, msg:
+        opts, args = getopt.getopt(
+            args,
+            "hg:s:d:p:o:m:r:c:vRuC",
+            [
+                "help",
+                "good=",
+                "spam=",
+                "database=",
+                "pickle=",
+                "verbose",
+                "option=",
+                "max=",
+                "maxrounds=",
+                "cullext=",
+                "cull",
+                "reverse",
+                "ratio=",
+                "unbalanced",
+            ],
+        )
+    except getopt.GetoptError as msg:
         usage(msg)
         return 1
 
@@ -265,7 +299,7 @@ def main(args):
         elif opt == '--ratio':
             arg = arg.split(":")
             sh_ratio = (int(arg[0]), int(arg[1]))
-            
+
     if ham is None or spam is None:
         usage("require both ham and spam piles")
         return 1
@@ -280,8 +314,17 @@ def main(args):
     store = storage.open_storage(dbname, usedb)
 
     tdict = {}
-    train(store, ham, spam, maxmsgs, maxrounds, tdict, reverse, verbose,
-          sh_ratio)
+    train(
+        store,
+        ham,
+        spam,
+        maxmsgs,
+        maxrounds,
+        tdict,
+        reverse,
+        verbose,
+        sh_ratio,
+    )
 
     store.store()
     store.close()
@@ -291,6 +334,7 @@ def main(args):
         cull(spam, cullext, 'spam', tdict)
 
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

@@ -1,6 +1,10 @@
+from __future__ import division
+from builtins import object
+from past.utils import old_div
 from spambayes.Options import options
 
-class Test:
+
+class Test(object):
     # Pass a classifier instance (an instance of Bayes).
     # Loop:
     #     # Train the classifer with new ham and spam.
@@ -40,9 +44,9 @@ class Test:
         self.nspam_unsure = 0
 
         # Lists of bad predictions.
-        self.ham_wrong_examples = []    # False positives:  ham called spam.
-        self.spam_wrong_examples = []   # False negatives:  spam called ham.
-        self.unsure_examples = []       # ham and spam in middle ground
+        self.ham_wrong_examples = []  # False positives:  ham called spam.
+        self.spam_wrong_examples = []  # False negatives:  spam called ham.
+        self.unsure_examples = []  # ham and spam in middle ground
 
     # Train the classifier on streams of ham and spam.  Updates probabilities
     # before returning, and resets test results.
@@ -84,7 +88,7 @@ class Test:
             prob = guess(example)
             if callback:
                 callback(example, prob)
-            is_ham_guessed  = prob <  options["Categorization", "ham_cutoff"]
+            is_ham_guessed = prob < options["Categorization", "ham_cutoff"]
             is_spam_guessed = prob >= options["Categorization", "spam_cutoff"]
             if is_spam:
                 self.nspam_tested += 1
@@ -107,22 +111,28 @@ class Test:
                     self.nham_unsure += 1
                     self.unsure_examples.append(example)
 
-        assert (self.nham_right + self.nham_wrong + self.nham_unsure ==
-                self.nham_tested)
-        assert (self.nspam_right + self.nspam_wrong + self.nspam_unsure ==
-                self.nspam_tested)
+        assert (
+            self.nham_right + self.nham_wrong + self.nham_unsure
+            == self.nham_tested
+        )
+        assert (
+            self.nspam_right + self.nspam_wrong + self.nspam_unsure
+            == self.nspam_tested
+        )
 
     def false_positive_rate(self):
         """Percentage of ham mistakenly identified as spam, in 0.0..100.0."""
-        return self.nham_wrong * 1e2 / (self.nham_tested or 1)
+        return old_div(self.nham_wrong * 1e2, (self.nham_tested or 1))
 
     def false_negative_rate(self):
         """Percentage of spam mistakenly identified as ham, in 0.0..100.0."""
-        return self.nspam_wrong * 1e2 / (self.nspam_tested or 1)
+        return old_div(self.nspam_wrong * 1e2, (self.nspam_tested or 1))
 
     def unsure_rate(self):
-        return ((self.nham_unsure + self.nspam_unsure) * 1e2 /
-                ((self.nham_tested + self.nspam_tested) or 1))
+        return old_div(
+            (self.nham_unsure + self.nspam_unsure) * 1e2,
+            ((self.nham_tested + self.nspam_tested) or 1),
+        )
 
     def false_positives(self):
         return self.ham_wrong_examples
@@ -133,12 +143,15 @@ class Test:
     def unsures(self):
         return self.unsure_examples
 
-class _Example:
+
+class _Example(object):
     def __init__(self, name, words):
         self.name = name
         self.words = words
+
     def __iter__(self):
         return iter(self.words)
+
 
 _easy_test = """
     >>> from spambayes.classifier import Bayes
@@ -189,4 +202,5 @@ __test__ = {'easy': _easy_test}
 
 if __name__ == '__main__':
     import doctest
+
     doctest.testmod()
