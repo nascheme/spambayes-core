@@ -1,15 +1,13 @@
 """Lock pickle files for reading and writing."""
 
 from __future__ import print_function
-from builtins import str
-from builtins import object
 import sys
 import os
 from six.moves import cPickle as pickle
 from spambayes.Options import options
 
 
-class _InterProcessLock(object):
+class _InterProcessLock:
     # FIXME: replace with 'fasteners.InterProcessLock'
     def __init__(self, filename):
         pass

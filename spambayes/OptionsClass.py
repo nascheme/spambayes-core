@@ -53,14 +53,6 @@ from __future__ import print_function
 # The Python Software Foundation and is covered by the Python Software
 # Foundation license.
 
-from future import standard_library
-
-standard_library.install_aliases()
-from builtins import chr
-from builtins import str
-from builtins import range
-from future.utils import raise_
-from builtins import object
 
 __credits__ = "All the Spambayes folk."
 # blame for the new format: Tony Meyer <ta-meyer@ihug.co.nz>
@@ -120,7 +112,7 @@ __all__ = [
 MultiContainerTypes = (tuple, list)
 
 
-class Option(object):
+class Option:
     def __init__(
         self,
         name,
@@ -310,7 +302,7 @@ class Option(object):
                 return True
             elif str(value) == "False" or value == 0:
                 return False
-            raise_(TypeError, self.name + " must be True or False")
+            TypeError(self.name + " must be True or False")
         if self.multiple_values_allowed():
             # This will fall apart if the allowed_value is a tuple,
             # but not a homogenous one...
@@ -330,7 +322,7 @@ class Option(object):
             return tuple(vals)
         else:
             return self._convert(value, svt)
-        raise_(TypeError, self.name + " has an invalid type.")
+        TypeError(self.name + " has an invalid type.")
 
     def _convert(self, value, to_type):
         '''Convert an int, float or string to the specified type.'''
@@ -415,7 +407,7 @@ class Option(object):
         return False
 
 
-class OptionsClass(object):
+class OptionsClass:
     def __init__(self):
         self.verbose = None
         self._options = {}
@@ -547,7 +539,7 @@ class OptionsClass(object):
 
     def load_defaults(self, defaults):
         '''Load default values (stored in Options.py).'''
-        for section, opts in list(defaults.items()):
+        for section, opts in defaults.items():
             for opt in opts:
                 # If first item of the tuple is a sub-class of Option, then
                 # instantiate that (with the rest as args).  Otherwise,
@@ -775,7 +767,7 @@ class OptionsClass(object):
     def sections(self):
         '''Return an alphabetical list of all the sections.'''
         all = []
-        for sect, opt in list(self._options.keys()):
+        for sect, opt in self._options.keys():
             if sect not in all:
                 all.append(sect)
         all.sort()
@@ -784,7 +776,7 @@ class OptionsClass(object):
     def options_in_section(self, section):
         '''Return an alphabetical list of all the options in this section.'''
         all = []
-        for sect, opt in list(self._options.keys()):
+        for sect, opt in self._options.keys():
             if sect == section:
                 all.append(opt)
         all.sort()
@@ -794,7 +786,7 @@ class OptionsClass(object):
         """Return an alphabetical list of all the options, optionally
         prefixed with [section_name]"""
         all = []
-        for sect, opt in list(self._options.keys()):
+        for sect, opt in self._options.keys():
             if prepend_section_name:
                 all.append('[' + sect + ']' + opt)
             else:

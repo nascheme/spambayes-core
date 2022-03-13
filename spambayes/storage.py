@@ -46,8 +46,6 @@ from __future__ import print_function
 ### situations prints to sys.stdout will garble the message (e.g., in
 ### hammiefilter).
 
-from builtins import str
-from builtins import object
 
 __author__ = (
     "Neale Pickett <neale@woozle.org>,"
@@ -449,7 +447,7 @@ class _PersistentClassifier(classifier.Classifier, Persistent):
         self.wordinfo = OOBTree()
 
 
-class ZODBClassifier(object):
+class ZODBClassifier:
     # Allow subclasses to override classifier class.
     ClassifierClass = _PersistentClassifier
 
@@ -719,7 +717,7 @@ class ZEOClassifier(ZODBClassifier):
 NO_TRAINING_FLAG = 1
 
 
-class Trainer(object):
+class Trainer:
     '''Associates a Classifier object and one or more Corpora, \
     is an observer of the corpora'''
 

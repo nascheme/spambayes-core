@@ -1,16 +1,6 @@
 #! /usr/bin/env python3
 """Module to tokenize email messages for spam filtering."""
 from __future__ import division
-
-from future import standard_library
-
-standard_library.install_aliases()
-from builtins import chr
-from builtins import map
-from builtins import range
-from past.utils import old_div
-from builtins import object
-
 import email
 import email.header
 import email.utils
@@ -34,7 +24,7 @@ try:
     cache.printStatsAtEnd = False
 except (IOError, ImportError):
 
-    class cache(object):
+    class cache:
         @staticmethod
         def lookup(*args):
             return []
@@ -953,10 +943,10 @@ def breakdown_ipaddr(ipaddr):
 
 
 def log2(n, log=math.log, c=math.log(2)):
-    return old_div(log(n), c)
+    return log(n) / c
 
 
-class Stripper(object):
+class Stripper:
 
     # The retained portions are catenated together with self.separator.
     # CAUTION:  This used to be blank.  But then I noticed spam putting
@@ -1312,7 +1302,7 @@ breaking_entity_re = re.compile(
 )
 
 
-class Tokenizer(object):
+class Tokenizer:
 
     date_hms_re = re.compile(
         r' (?P<hour>[0-9][0-9])'
@@ -1388,7 +1378,7 @@ class Tokenizer(object):
         # the best discriminators.
         # (Not just Date, but Received and X-From_.)
         if options["Tokenizer", "basic_header_tokenize"]:
-            for k, v in list(msg.items()):
+            for k, v in msg.items():
                 k = k.lower()
                 for rx in self.basic_skip:
                     if rx.match(k):
@@ -1651,7 +1641,7 @@ class Tokenizer(object):
         # X-Complaints-To a strong ham clue.
         x2n = {}
         if options["Tokenizer", "count_all_header_lines"]:
-            for x in list(msg.keys()):
+            for x in msg.keys():
                 x2n[x] = x2n.get(x, 0) + 1
         else:
             # Do a "safe" approximation to that.  When spam and ham are
@@ -1659,10 +1649,10 @@ class Tokenizer(object):
             # lines can be a too strong a discriminator for accidental
             # reasons.
             safe_headers = options["Tokenizer", "safe_headers"]
-            for x in list(msg.keys()):
+            for x in msg.keys():
                 if x.lower() in safe_headers:
                     x2n[x] = x2n.get(x, 0) + 1
-        for x in list(x2n.items()):
+        for x in x2n.items():
             yield "header:%s:%d" % x
         if options["Tokenizer", "record_header_absence"]:
             for k in x2n:

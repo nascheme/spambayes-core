@@ -1,10 +1,8 @@
 from __future__ import division
-from builtins import object
-from past.utils import old_div
 from spambayes.Options import options
 
 
-class Test(object):
+class Test:
     # Pass a classifier instance (an instance of Bayes).
     # Loop:
     #     # Train the classifer with new ham and spam.
@@ -122,16 +120,17 @@ class Test(object):
 
     def false_positive_rate(self):
         """Percentage of ham mistakenly identified as spam, in 0.0..100.0."""
-        return old_div(self.nham_wrong * 1e2, (self.nham_tested or 1))
+        return self.nham_wrong * 1e2 / (self.nham_tested or 1)
 
     def false_negative_rate(self):
         """Percentage of spam mistakenly identified as ham, in 0.0..100.0."""
-        return old_div(self.nspam_wrong * 1e2, (self.nspam_tested or 1))
+        return self.nspam_wrong * 1e2 / (self.nspam_tested or 1)
 
     def unsure_rate(self):
-        return old_div(
-            (self.nham_unsure + self.nspam_unsure) * 1e2,
-            ((self.nham_tested + self.nspam_tested) or 1),
+        return (
+            (self.nham_unsure + self.nspam_unsure)
+            * 1e2
+            / ((self.nham_tested + self.nspam_tested) or 1)
         )
 
     def false_positives(self):
@@ -144,7 +143,7 @@ class Test(object):
         return self.unsure_examples
 
 
-class _Example(object):
+class _Example:
     def __init__(self, name, words):
         self.name = name
         self.words = words

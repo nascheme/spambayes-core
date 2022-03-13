@@ -39,7 +39,7 @@ def _decode(v):
     return v.decode('utf-8')
 
 
-class BytesCdb(object):
+class BytesCdb:
     def __init__(self, fp):
         self.fp = fp
         fd = fp.fileno()

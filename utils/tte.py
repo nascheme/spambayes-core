@@ -68,7 +68,6 @@ blog:
     http://www.garyrobinson.net/2004/02/spam_filtering_.html
 """
 
-from __future__ import division
 from __future__ import print_function
 import sys
 import getopt

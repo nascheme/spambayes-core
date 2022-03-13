@@ -1,14 +1,5 @@
 #! /usr/bin/env python3
 
-from __future__ import division
-from __future__ import print_function
-from future import standard_library
-
-standard_library.install_aliases()
-from builtins import str
-from past.utils import old_div
-from builtins import object
-
 # An implementation of a Bayes-like spam classifier.
 #
 # Paul Graham's original description:
@@ -44,6 +35,7 @@ from builtins import object
 #
 # This implementation is due to Tim Peters et alia.
 
+from __future__ import print_function
 import math
 
 # XXX At time of writing, these are only necessary for the
@@ -73,7 +65,7 @@ slurp_wordstream = None
 PICKLE_VERSION = 5
 
 
-class WordInfo(object):
+class WordInfo:
     # A WordInfo is created for each distinct word.  spamcount is the
     # number of trained spam msgs in which the word appears, and hamcount
     # the number of trained ham msgs.
@@ -98,7 +90,7 @@ class WordInfo(object):
         self.spamcount, self.hamcount = t
 
 
-class Classifier(object):
+class Classifier:
     # Defining __slots__ here made Jeremy's life needlessly difficult when
     # trying to hook this all up to ZODB as a persistent object.  There's
     # no space benefit worth getting from slots in this class; slots were
@@ -297,14 +289,14 @@ class Classifier(object):
         nspam = float(self.nspam or 1)
 
         assert hamcount <= nham, "Token seen in more ham than ham trained."
-        hamratio = old_div(hamcount, nham)
+        hamratio = hamcount / nham
 
         assert (
             spamcount <= nspam
         ), "Token seen in more spam than spam trained."
-        spamratio = old_div(spamcount, nspam)
+        spamratio = spamcount / nspam
 
-        prob = old_div(spamratio, (hamratio + spamratio))
+        prob = spamratio / (hamratio + spamratio)
 
         S = options["Classifier", "unknown_word_strength"]
         StimesX = S * options["Classifier", "unknown_word_prob"]
@@ -326,7 +318,7 @@ class Classifier(object):
         # less so the larger n is, or the smaller s is.
 
         n = hamcount + spamcount
-        prob = old_div((StimesX + n * prob), (S + n))
+        prob = (StimesX + n * prob) / (S + n)
 
         # Update the cache
         try:
@@ -675,7 +667,7 @@ class Classifier(object):
             url = self._base_url(url)
 
         # Check the unretrievable caches
-        for err in list(self.bad_urls.keys()):
+        for err in self.bad_urls.keys():
             if url in self.bad_urls[err]:
                 return [err]
         if url in self.http_error_urls:
