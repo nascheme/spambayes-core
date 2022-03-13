@@ -6,17 +6,25 @@ import os
 from six.moves import cPickle as pickle
 from spambayes.Options import options
 
+try:
+    from fasteners import InterProcessLock as _InterProcessLock
+except ImportError:
 
-class _InterProcessLock:
-    # FIXME: replace with 'fasteners.InterProcessLock'
-    def __init__(self, filename):
-        pass
+    # Dummy locking class
 
-    def acquire(self, timeout=0):
-        pass
+    class _InterProcessLock:
+        def __init__(self, filename):
+            import warnings
 
-    def release(self):
-        pass
+            warnings.warn(
+                "Missing 'fasteners', using dummy locking for safepickle"
+            )
+
+        def acquire(self, timeout=0):
+            pass
+
+        def release(self):
+            pass
 
 
 def pickle_read(filename):
