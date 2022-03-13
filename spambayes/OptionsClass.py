@@ -57,7 +57,7 @@ from __future__ import print_function
 __credits__ = "All the Spambayes folk."
 # blame for the new format: Tony Meyer <ta-meyer@ihug.co.nz>
 
-__issues__ = """Things that should be considered further and by
+__issues__ = r"""Things that should be considered further and by
 other people:
 
 We are very generous in checking validity when multiple values are
@@ -83,7 +83,6 @@ import shutil
 from tempfile import TemporaryFile
 import io
 import re
-import types
 import locale
 from textwrap import wrap
 

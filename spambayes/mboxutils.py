@@ -123,7 +123,7 @@ def getmbox(name):
         )
 
         from scripts.sb_imapfilter import IMAPSession, IMAPFolder
-        from spambayes import Stats, message
+        from spambayes import Stats
         from spambayes.Options import options
 
         session = IMAPSession(parts['server'])

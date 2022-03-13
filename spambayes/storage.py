@@ -61,7 +61,6 @@ from spambayes import classifier
 from spambayes.Options import options, get_pathname_option
 import errno
 import shelve
-from spambayes import cdb
 from spambayes.safepickle import pickle_write, pickle_read
 
 # Make shelve use binary pickles by default.

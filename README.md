@@ -55,7 +55,7 @@ used:
 
     # Assumes that BAYESCUSTOMIZE envvar is set.
     from spambayes.cdb_classifier import CdbClassifier
-    from spambayes.tokenizer import tokenize, textparts
+    from spambayes.tokenizer import tokenize
     from spambayes.Options import options
     _BAYES = CdbClassifier(open(DB_FILE, 'rb'))
 
