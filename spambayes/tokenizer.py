@@ -845,6 +845,13 @@ del i, ch
 non_ascii_translate_tab = ''.join(non_ascii_translate_tab)
 
 
+def _get_str(msg, name, default=None):
+    s = msg.get(name, default)
+    if isinstance(s, email.header.Header):
+        s = str(s)
+    return s
+
+
 def crack_content_xyz(msg):
     yield 'content-type:' + msg.get_content_type()
 
@@ -862,7 +869,7 @@ def crack_content_xyz(msg):
         #                 header
         yield 'charset:invalid_unicode'
 
-    x = msg.get('content-disposition')
+    x = _get_str(msg, 'content-disposition')
     if x is not None:
         yield 'content-disposition:' + x.lower()
 
@@ -1593,7 +1600,7 @@ class Tokenizer:
         #            rate isn't affected.
         for field in ('x-mailer',):
             prefix = field + ':'
-            x = msg.get(field, 'none').lower()
+            x = _get_str(msg, field, 'none').lower()
             yield prefix + ' '.join(x.split())
 
         # Received:
@@ -1603,6 +1610,7 @@ class Tokenizer:
                 # everything here should be case insensitive and not be
                 # split across continuation lines, so normalize whitespace
                 # and letter case just once per header
+                header = str(header)
                 header = ' '.join(header.split()).lower()
 
                 for clue in received_complaints_re.findall(header):
@@ -1626,7 +1634,7 @@ class Tokenizer:
 
         # Message-Id:  This seems to be a small win and should not
         # adversely affect a mixed source corpus so it's always enabled.
-        msgid = msg.get("message-id", "")
+        msgid = _get_str(msg, "message-id", "")
         m = message_id_re.match(msgid)
         if m:
             # looks okay, return the hostname

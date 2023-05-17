@@ -32,7 +32,7 @@ def cdb_hash(buf):
 
 
 def _encode(v):
-    return v.encode('utf-8')
+    return v.encode('utf-8', 'replace')
 
 
 def _decode(v):
